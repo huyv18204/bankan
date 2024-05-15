@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\CreatedTask;
+use App\Events\DeletedMember;
 use App\Events\DeletedTask;
 use App\Events\DisplayGroup;
 use App\Events\JoinBoard;
@@ -160,6 +161,16 @@ class HomeController extends Controller
         return response()->json([
             "task_id" => $request->task_id,
             "status" => $request->status,
+        ]);
+    }
+
+
+    public function deleteMember(Request $request){
+        Group_user::query()->where("user_id",$request->user_id)->where("group_id",$request->group_id)->delete();
+        broadcast(new DeletedMember($request->user_id, $request->group_id));
+        return response()->json([
+            "user_id" => $request->user_id,
+            "group_id" => $request->group_id,
         ]);
     }
 }

@@ -26,6 +26,9 @@ Broadcast::channel('updateTask', function ($user) {
 Broadcast::channel('deleteTask', function ($user) {
     return $user != null;
 });
+Broadcast::channel('deleteMember.{member}', function ($user,$member) {
+    return (int)$user->id == (int)$member;
+});
 Broadcast::channel('updateStatus', function ($user) {
     return $user != null;
 });

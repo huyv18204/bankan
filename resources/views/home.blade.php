@@ -23,7 +23,7 @@
                 </div>
                 <div class="ms-3" id="group-join">
                     @foreach($groupJoined as $groupInfo)
-                        <div class="my-1">
+                        <div id="group-join-{{$groupInfo->id}}" class="my-1">
                             <i class="fa-solid fa-caret-right"></i>
                             <a class="ms-2"
                                href="{{route("board",$groupInfo->group_id)}}">{{$groupInfo->group->name}}</a>
@@ -93,6 +93,16 @@
 
                                 </li>
                             @endforeach
+                            @if($differentGroup->user_id == \Illuminate\Support\Facades\Auth::user()->id)
+
+                                <div class="d-flex justify-content-center mt-3">
+                                    <a href="#" class="text-decoration-underline" data-bs-toggle="modal"
+                                       data-bs-target="#staticBackdrop">
+                                        Edit
+                                    </a>
+                                </div>
+                            @endif
+
                         </ul>
                     </div>
                 </div>
@@ -177,6 +187,8 @@
                     </li>
                 </ul>
             </div>
+
+
         </div>
     </div>
 
@@ -215,6 +227,39 @@
 
     </div>
 
+
+    <!-- Modal -->
+    <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+         aria-labelledby="staticBackdropLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="staticBackdropLabel">Board's Members</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="list-group list-group-scroll ">
+
+                        @foreach($userBelongsGroup as $user)
+                            <li id="delete-member-{{$user->id}}" class="list-group-item">
+                                <div class="row">
+                                    <div class="col-11">
+                                        {{$user->name}}
+                                    </div>
+                                    <div class="col-1" onclick="deleteMember({{$user->id}})">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </div>
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section("script")
@@ -252,7 +297,31 @@
         new MultiSelectTag('member')
     </script>
     <script>
-        /* Custom Dragula JS */
+        function deleteMember(id) {
+            if (confirm("Are you sure delete member")) {
+                axios.post("{{route("deleteMember")}}", {
+                    group_id: {{$group_id}},
+                    user_id: id
+                })
+                    .then((res) => {
+                        console.log(res)
+                        let trashElement = document.getElementById(`delete-member-${res.data.user_id}`)
+                        console.log(trashElement)
+                        trashElement.remove()
+                        const toastLiveExample = document.getElementById('liveToast');
+                        const toastBootstrap = bootstrap.Toast.getOrCreateInstance(toastLiveExample);
+                        document.querySelector(".toast-body").textContent = "Đã xoá thành viên khỏi nhóm";
+                        document.querySelector("strong").textContent = "Trưởng nhóm"
+                        toastBootstrap.show();
+
+                        setTimeout(function() {
+                            location.reload();
+                        }, 2000);
+
+                    })
+            }
+        }
+
         let drake = dragula([
             document.getElementById("to-do"),
             document.getElementById("doing"),
@@ -264,7 +333,6 @@
 
         drake.on("drag", function (element, container) {
             element.className.replace("ex-moved", "");
-            // console.log(container)
         })
         drake.on("drop", function (element, container) {
             element.className += "ex-moved";
@@ -275,11 +343,9 @@
         })
         drake.on("over", function (element, container) {
             container.className += "ex-over";
-            // console.log(container)
         })
         drake.on("out", function (element, container) {
             container.className.replace("ex-over", "");
-            // console.log(container)
         });
 
         function cancel() {
@@ -291,9 +357,7 @@
             document.getElementById("taskText").value = ""
         }
 
-        /* Vanilla JS to delete tasks in 'Trash' column */
         function emptyTrash() {
-            /* Clear tasks from 'Trash' column */
             let elementTrash = document.querySelectorAll("#trash .task")
             let task_id = Array.from(elementTrash).map((item) =>
                 parseInt(item.dataset.id)
@@ -307,11 +371,6 @@
         }
 
         function fillName(id) {
-            // let taskElements = document.querySelectorAll(".task");
-            //
-            // for (let i = 0; i < taskElements.length; i++) {
-            //     taskElements[i].removeAttribute("onclick");
-            // }
             let updateAtElement = document.getElementById("update-at")
             let task = document.getElementById(`task-${id}`)
             updateAtElement.value = task.dataset.updated
@@ -404,7 +463,6 @@
 
         Echo.channel("updateTask")
             .listen("UpdatedTask", e => {
-                // let taskTodo = document.getElementById("to-do")
                 let taskElement = document.getElementById(`task-${e.task.id}`)
                 toasts(`Đã cập nhật tên ${taskElement.textContent} thành ${e.task.name}`, e.user.name)
                 taskElement.dataset.updated = e.task.updated_at
@@ -417,7 +475,21 @@
                 let trashElement = document.getElementById("trash")
                 trashElement.innerHTML = ""
             })
+        Echo.private("deleteMember.{{\Illuminate\Support\Facades\Auth::user()->id}}")
+            .listen("DeletedMember", e => {
+                if((e.group_id == {{$group_id}})){
+                    toasts("Đã xoá bạn khỏi board của anh ấy", e.user.name)
+                    setTimeout(() => {
+                        window.location.href = "{{route("myBoard")}}";
+                    }, 3000);
+                }else {
+                    let groupJoinElement = document.getElementById(`group-join-${e.group_id}`)
+                    groupJoinElement.remove()
+                    toasts("Đã xoá bạn khỏi board của anh ấy", e.user.name)
+                }
 
+
+            })
         Echo.channel("updateStatus")
             .listen("UpdatedStatus", e => {
                 toasts(`Đã cập nhật trạng thái ${e.task.name}`, e.user.name)
@@ -443,14 +515,12 @@
                 })
             })
             .joining((user) => {
-                // toasts(`${user.name} đang online`, "Hệ thống")
                 let displayStatusElement = document.getElementById(`display-status-${user.id}`)
                 if (displayStatusElement) {
                     displayStatusElement.innerHTML = `<div class=" status"></div>`
                 }
             })
             .leaving((user) => {
-                // toasts(`${user.name} đã offline`, "Hệ thống")
                 let displayStatusElement = document.getElementById(`display-status-${user.id}`)
                 if (displayStatusElement && displayStatusElement.querySelector(".status")) {
                     displayStatusElement.removeChild(displayStatusElement.querySelector(".status"))
@@ -462,7 +532,7 @@
                 let elementGroupJoin = document.getElementById("group-join")
                 elementGroupJoin.innerHTML = `
 
-                <div class="my-1">
+                <div id="group-join-${e.group.id}" class="my-1">
                     <i class="fa-solid fa-caret-right"></i>
                     <a class="ms-2" href="/board/${e.group.id}">${e.group.name}</a>
                 </div>

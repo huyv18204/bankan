@@ -254,3 +254,7 @@ li {
     right: 7px;
     bottom: 1px;
 }
+.list-group-scroll {
+    max-height: 200px; /* Đặt chiều cao cố định phù hợp */
+    overflow-y: auto;
+}
